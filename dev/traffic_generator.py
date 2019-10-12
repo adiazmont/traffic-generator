@@ -1,8 +1,12 @@
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import time
 from random import normalvariate
 from multiprocessing import Process, Manager
+import json
+"""
+    Enabling access to wavelengths dict
+"""
 manager = Manager()
 wavelengths = manager.dict()
 off = 'off'
@@ -16,10 +20,20 @@ def init_wavelength_dict():
 init_wavelengths_proc = Process(target=init_wavelength_dict)
 init_wavelengths_proc.start()
 init_wavelengths_proc.join()
-print(wavelengths)
+"""
+    End enabling access to wavelengths dict
+"""
+
+json_data_struct = {'traffic': []}
 
 
 def get_bit_rate():
+    """
+    Select a bit rate (Gbps) for a given
+    traffic request. The selection follows
+    the Normal distribution.
+    :return: selected bit rate
+    """
     bit_rates_Gbps = [50, 100, 150, 200]
     position_range = np.arange(0, 100)
     mu = np.mean(position_range)
@@ -37,23 +51,37 @@ def get_bit_rate():
 
 
 def get_time_duration():
-    times = range(1, 7)
+    """
+    Select a time duration (seconds) for a given
+    traffic request. The selection follows
+    the Normal distribution.
+    :return: selected duration time
+    """
+    times = np.arange(10, 110, 10)
     position_range = np.arange(0, 100)
     mu = np.mean(position_range)
     sigma = np.std(position_range)
     index = int(normalvariate(mu, sigma) + 0.5)
-    if index <= 17:
+    if index <= 10:
         pt = 0
-    elif 18 <= index <= 35:
+    elif 11 <= index <= 20:
         pt = 1
-    elif 36 <= index <= 53:
+    elif 21 <= index <= 30:
         pt = 2
-    elif 54 <= index <= 71:
+    elif 31 <= index <= 40:
         pt = 3
-    elif 72 <= index <= 89:
+    elif 41 <= index <= 50:
         pt = 4
-    else:
+    elif 51 <= index <= 60:
         pt = 5
+    elif 61 <= index <= 70:
+        pt = 6
+    elif 71 <= index <= 80:
+        pt = 7
+    elif 81 <= index <= 90:
+        pt = 8
+    else:
+        pt = 9
     return times[pt]
 
 
@@ -66,10 +94,15 @@ def available_wavelengths():
 
 
 def get_selected_load(bit_rate):
+    """
+    Calculate and select the number of wavelengths
+    required for a traffic request to be fulfilled.
+    Update wavelength global dict
+    :param bit_rate: bit rate of traffic request
+    :return: selected wavelengths in domain
+    """
     transmission_per_channel = 25  # Gbps
     avail_wavelengths = available_wavelengths()
-    print("Get selected load")
-    print(avail_wavelengths)
     required_load = int(bit_rate/transmission_per_channel)
     if len(avail_wavelengths) < required_load:
         return None
@@ -80,23 +113,42 @@ def get_selected_load(bit_rate):
 
 
 def release_load(tr, sleep_time, selected_load):
+    """
+    Release wavelength load from the
+    wavelength global dict
+    :param tr: traffic request ID
+    :param sleep_time: sleep time in seconds
+    :param selected_load: wavelengths to be released
+    :return:
+    """
     if selected_load:
         time.sleep(sleep_time)
-        print("TS-%s releasing load %s" % (tr, selected_load))
         if selected_load:
             for k in selected_load:
                 wavelengths[k] = 'off'
 
 
+def append_to_json_file(tr, br, load, selected, arrv_t):
+    json_data_struct['traffic'].append({
+        'id': tr,
+        'bit_rate': br,
+        'tr_load': load,
+        'tr_selected': selected,
+        'tr_arrival_time': arrv_t
+    })
+    with open('traffic-files/traffic_test.json', 'w') as outfile:
+        json.dump(json_data_struct, outfile)
+
+
 # 1) Generate multiple traffic request with time
 # intervals between each other following the
 # Poisson distribution
-events_per_second = 1/30.0  # 1 traffic request arriving (average) every 30 seconds
+tr_events_per_second = 1/30.0  # 1 traffic request arriving (average) every 30 seconds
 seconds = 86400  # 10 hours observation time
-events = np.random.choice([0, 1], size=seconds, replace=True,
-                          p=[1-events_per_second, events_per_second])
-occurrence_times = np.where(events == 1)[0]
-waiting_times = np.diff(occurrence_times)
+tr_events = np.random.choice([0, 1], size=seconds, replace=True,
+                             p=[1-tr_events_per_second, tr_events_per_second])
+tr_occurrence_times = np.where(tr_events == 1)[0]
+tr_waiting_times = np.diff(tr_occurrence_times)
 
 # Visualize the arrival times
 # y_ax = [1] * len(occurrence_times)
@@ -108,27 +160,28 @@ waiting_times = np.diff(occurrence_times)
 # plt.show()
 
 
-# 2) Iterate through the generated traffic request
-# arrival times and create traffic request
-# characteristics in terms of bit rate and lifetime
+# 2) Iterate through the generated traffic requests
+# arrival times and create tr-instances
+# characteristics in terms of bit rate and lifetime.
+# And create domain json files with them.
 # - considering 90-wavelength available systems
 # - considering 25GBaud with PM-BPSK for 50 Gbps per channel
-prev_arriv_time = 0
+tr_prev_arriv_time = 0
 tr_id = 1
 procs = []
-for arriv_time in occurrence_times[0:5]:
-    wait_time = (arriv_time - prev_arriv_time)/100.0
-    prev_arriv_time = arriv_time
+for tr_arriv_time in tr_occurrence_times[0:10]:
+    tr_wait_time = (tr_arriv_time - tr_prev_arriv_time)/1000.0
+    tr_prev_arriv_time = tr_arriv_time
     # First wait (i.e., sleep) and then process
-    time.sleep(wait_time)
+    time.sleep(tr_wait_time)
 
     tr_bit_rate = get_bit_rate()
-    tr_time_duration = get_time_duration()/1.0
+    tr_time_duration = get_time_duration()/1000.0
+    serializable_wavelengths = wavelengths.copy()
     tr_selected_load = get_selected_load(tr_bit_rate)
-    print("TR-%s selecting load %s" % (tr_id, tr_selected_load))
+    append_to_json_file(tr_id, tr_bit_rate, serializable_wavelengths, tr_selected_load, int(tr_arriv_time))
 
     p = Process(target=release_load, args=(tr_id, tr_time_duration, tr_selected_load))
-
     p.start()
     procs.append(p)
 
@@ -136,4 +189,3 @@ for arriv_time in occurrence_times[0:5]:
 
 for p in procs:
     p.join()
-

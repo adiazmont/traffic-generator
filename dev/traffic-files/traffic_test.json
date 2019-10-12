@@ -1,0 +1,10 @@
+{"traffic": [{"id": 1, "bit_rate": 200, "tr_load": {"1": "off", "2": "off", "3": "off", "4": "off", "5": "off", "6": "off", "7": "off", "8": "off", "9": "off"}, "tr_selected": [1, 2, 3, 4, 5, 6, 7], "tr_arrival_time": 43},
+    {"id": 2, "bit_rate": 150, "tr_load": {"1": "on", "2": "on", "3": "on", "4": "on", "5": "on", "6": "on", "7": "on", "8": "off", "9": "off"}, "tr_selected": null, "tr_arrival_time": 72},
+    {"id": 3, "bit_rate": 100, "tr_load": {"1": "off", "2": "off", "3": "off", "4": "off", "5": "off", "6": "off", "7": "off", "8": "off", "9": "off"}, "tr_selected": [1, 2, 3], "tr_arrival_time": 134},
+    {"id": 4, "bit_rate": 100, "tr_load": {"1": "on", "2": "on", "3": "on", "4": "off", "5": "off", "6": "off", "7": "off", "8": "off", "9": "off"}, "tr_selected": [4, 5, 6], "tr_arrival_time": 170},
+    {"id": 5, "bit_rate": 100, "tr_load": {"1": "on", "2": "on", "3": "on", "4": "on", "5": "on", "6": "on", "7": "off", "8": "off", "9": "off"}, "tr_selected": null, "tr_arrival_time": 181},
+    {"id": 6, "bit_rate": 100, "tr_load": {"1": "off", "2": "off", "3": "off", "4": "on", "5": "on", "6": "on", "7": "off", "8": "off", "9": "off"}, "tr_selected": [1, 2, 3], "tr_arrival_time": 206},
+    {"id": 7, "bit_rate": 150, "tr_load": {"1": "on", "2": "on", "3": "on", "4": "on", "5": "on", "6": "on", "7": "off", "8": "off", "9": "off"}, "tr_selected": null, "tr_arrival_time": 211},
+    {"id": 8, "bit_rate": 150, "tr_load": {"1": "on", "2": "on", "3": "on", "4": "off", "5": "off", "6": "off", "7": "off", "8": "off", "9": "off"}, "tr_selected": [4, 5, 6, 7, 8], "tr_arrival_time": 227},
+    {"id": 9, "bit_rate": 100, "tr_load": {"1": "off", "2": "off", "3": "off", "4": "on", "5": "on", "6": "on", "7": "on", "8": "on", "9": "off"}, "tr_selected": [1, 2, 3], "tr_arrival_time": 249},
+{"id": 10, "bit_rate": 100, "tr_load": {"1": "on", "2": "on", "3": "on", "4": "on", "5": "on", "6": "on", "7": "on", "8": "on", "9": "off"}, "tr_selected": null, "tr_arrival_time": 279}]}
