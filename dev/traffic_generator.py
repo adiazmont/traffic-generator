@@ -129,6 +129,15 @@ def release_load(tr, sleep_time, selected_load):
 
 
 def append_to_json_file(tr, br, load, selected, arrv_t):
+    """
+    Append data to JSON structure
+    :param tr: traffic ID
+    :param br: bit rate
+    :param load: current load in network
+    :param selected: selected (if any)
+    :param arrv_t: arrival time of request
+    :return:
+    """
     json_data_struct['traffic'].append({
         'id': tr,
         'bit_rate': br,
