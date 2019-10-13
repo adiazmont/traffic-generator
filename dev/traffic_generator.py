@@ -4,25 +4,8 @@ import time
 from random import normalvariate
 from multiprocessing import Process, Manager
 import json
-"""
-    Enabling access to wavelengths dict
-"""
-manager = Manager()
-wavelengths = manager.dict()
-off = 'off'
-
-
-def init_wavelength_dict():
-    static_wavelengths = {k: off for k in range(1, 10)}
-    wavelengths.update(static_wavelengths)
-
-
-init_wavelengths_proc = Process(target=init_wavelength_dict)
-init_wavelengths_proc.start()
-init_wavelengths_proc.join()
-"""
-    End enabling access to wavelengths dict
-"""
+import os
+os.chdir('../')
 
 json_data_struct = {'traffic': []}
 
@@ -85,52 +68,10 @@ def get_time_duration():
     return times[pt]
 
 
-def available_wavelengths():
-    """
-    Check for wavelengths 'off'
-    :return: wavelength indexes where 'off'
-    """
-    return [key for key, value in wavelengths.items() if value == off]
-
-
-def get_selected_load(bit_rate):
-    """
-    Calculate and select the number of wavelengths
-    required for a traffic request to be fulfilled.
-    Update wavelength global dict
-    :param bit_rate: bit rate of traffic request
-    :return: selected wavelengths in domain
-    """
-    transmission_per_channel = 25  # Gbps
-    avail_wavelengths = available_wavelengths()
-    required_load = int(bit_rate/transmission_per_channel)
-    if len(avail_wavelengths) < required_load:
-        return None
-    selected_load = avail_wavelengths[:required_load-1]
-    for k in selected_load:
-        wavelengths[k] = 'on'
-    return avail_wavelengths[:required_load-1]
-
-
-def release_load(tr, sleep_time, selected_load):
-    """
-    Release wavelength load from the
-    wavelength global dict
-    :param tr: traffic request ID
-    :param sleep_time: sleep time in seconds
-    :param selected_load: wavelengths to be released
-    :return:
-    """
-    if selected_load:
-        time.sleep(sleep_time)
-        if selected_load:
-            for k in selected_load:
-                wavelengths[k] = 'off'
-
-
-def append_to_json_file(tr, br, load, selected, arrv_t):
+def append_to_json_file(file_name, tr, br, load, selected, arrv_t):
     """
     Append data to JSON structure
+    :param file_name: json file name
     :param tr: traffic ID
     :param br: bit rate
     :param load: current load in network
@@ -145,56 +86,116 @@ def append_to_json_file(tr, br, load, selected, arrv_t):
         'tr_selected': selected,
         'tr_arrival_time': arrv_t
     })
-    with open('traffic-files/traffic_test.json', 'w') as outfile:
+    with open(file_name, 'w+') as outfile:
         json.dump(json_data_struct, outfile)
 
 
-# 1) Generate multiple traffic request with time
-# intervals between each other following the
-# Poisson distribution
-tr_events_per_second = 1/30.0  # 1 traffic request arriving (average) every 30 seconds
-seconds = 86400  # 10 hours observation time
-tr_events = np.random.choice([0, 1], size=seconds, replace=True,
-                             p=[1-tr_events_per_second, tr_events_per_second])
-tr_occurrence_times = np.where(tr_events == 1)[0]
-tr_waiting_times = np.diff(tr_occurrence_times)
+class TrafficGenerator:
 
-# Visualize the arrival times
-# y_ax = [1] * len(occurrence_times)
-# frame1 = plt.gca()
-# plt.scatter(occurrence_times, y_ax)
-# plt.title("%s traffic requests at arriving times" % len(occurrence_times))
-# plt.xlabel("Arriving time (seconds)")
-# frame1.axes.get_yaxis().set_ticks([])
-# plt.show()
+    def __init__(self, tr_file_name):
+        # Enable multi-process wavelengths editing
+        manager = Manager()
+        self.wavelengths = manager.dict()
+        self.off = 'off'
 
+        init_wavelengths_proc = Process(target=self.init_wavelength_dict)
+        init_wavelengths_proc.start()
+        init_wavelengths_proc.join()
 
-# 2) Iterate through the generated traffic requests
-# arrival times and create tr-instances
-# characteristics in terms of bit rate and lifetime.
-# And create domain json files with them.
-# - considering 90-wavelength available systems
-# - considering 25GBaud with PM-BPSK for 50 Gbps per channel
-tr_prev_arriv_time = 0
-tr_id = 1
-procs = []
-for tr_arriv_time in tr_occurrence_times[0:10]:
-    tr_wait_time = (tr_arriv_time - tr_prev_arriv_time)/1000.0
-    tr_prev_arriv_time = tr_arriv_time
-    # First wait (i.e., sleep) and then process
-    time.sleep(tr_wait_time)
+        # 1) Generate multiple traffic request with time
+        # intervals between each other following the
+        # Poisson distribution
+        tr_events_per_second = 1/30.0  # 1 traffic request arriving (average) every 30 seconds
+        seconds = 86400  # 10 hours observation time
+        tr_events = np.random.choice([0, 1], size=seconds, replace=True,
+                                     p=[1-tr_events_per_second, tr_events_per_second])
+        tr_occurrence_times = np.where(tr_events == 1)[0]
+        tr_waiting_times = np.diff(tr_occurrence_times)
 
-    tr_bit_rate = get_bit_rate()
-    tr_time_duration = get_time_duration()/1000.0
-    serializable_wavelengths = wavelengths.copy()
-    tr_selected_load = get_selected_load(tr_bit_rate)
-    append_to_json_file(tr_id, tr_bit_rate, serializable_wavelengths, tr_selected_load, int(tr_arriv_time))
+        # Visualize the arrival times
+        # y_ax = [1] * len(occurrence_times)
+        # frame1 = plt.gca()
+        # plt.scatter(occurrence_times, y_ax)
+        # plt.title("%s traffic requests at arriving times" % len(occurrence_times))
+        # plt.xlabel("Arriving time (seconds)")
+        # frame1.axes.get_yaxis().set_ticks([])
+        # plt.show()
 
-    p = Process(target=release_load, args=(tr_id, tr_time_duration, tr_selected_load))
-    p.start()
-    procs.append(p)
+        # 2) Iterate through the generated traffic requests
+        # arrival times and create tr-instances
+        # characteristics in terms of bit rate and lifetime.
+        # And create domain json files with them.
+        # - considering 90-wavelength available systems
+        # - considering 25GBaud with PM-BPSK for 50 Gbps per channel
+        tr_prev_arriv_time = 0
+        tr_id = 1
+        procs = []
+        start_time = time.time()
 
-    tr_id += 1
+        for tr_arriv_time in tr_occurrence_times[0:10]:
+            tr_wait_time = (tr_arriv_time - tr_prev_arriv_time)/10000.0
+            tr_prev_arriv_time = tr_arriv_time
+            # First wait (i.e., sleep) and then process
+            time.sleep(tr_wait_time)
 
-for p in procs:
-    p.join()
+            tr_bit_rate = get_bit_rate()
+            tr_time_duration = get_time_duration()/10000.0
+            serializable_wavelengths = self.wavelengths.copy()
+            tr_selected_load = self.get_selected_load(tr_bit_rate)
+            append_to_json_file(tr_file_name, tr_id, tr_bit_rate,
+                                serializable_wavelengths, tr_selected_load, int(tr_arriv_time))
+
+            p = Process(target=self.release_load, args=(tr_time_duration, tr_selected_load))
+            p.start()
+            procs.append(p)
+
+            tr_id += 1
+
+        for p in procs:
+            p.join()
+        end_time = time.time() - start_time
+
+        print("Took Proc. %s - %s sec to process 10 TRs" % (os.getpid(), end_time))
+
+    def init_wavelength_dict(self):
+        static_wavelengths = {k: self.off for k in range(1, 10)}
+        self.wavelengths.update(static_wavelengths)
+
+    def available_wavelengths(self):
+        """
+        Check for wavelengths 'off'
+        :return: wavelength indexes where 'off'
+        """
+        return [key for key, value in self.wavelengths.items() if value == self.off]
+
+    def get_selected_load(self, bit_rate):
+        """
+        Calculate and select the number of wavelengths
+        required for a traffic request to be fulfilled.
+        Update wavelength global dict
+        :param bit_rate: bit rate of traffic request
+        :return: selected wavelengths in domain
+        """
+        transmission_per_channel = 25  # Gbps
+        avail_wavelengths = self.available_wavelengths()
+        required_load = int(bit_rate / transmission_per_channel)
+        if len(avail_wavelengths) < required_load:
+            return None
+        selected_load = avail_wavelengths[:required_load - 1]
+        for k in selected_load:
+            self.wavelengths[k] = 'on'
+        return avail_wavelengths[:required_load - 1]
+
+    def release_load(self, sleep_time, selected_load):
+        """
+        Release wavelength load from the
+        wavelength global dict
+        :param sleep_time: sleep time in seconds
+        :param selected_load: wavelengths to be released
+        :return:
+        """
+        if selected_load:
+            time.sleep(sleep_time)
+            if selected_load:
+                for k in selected_load:
+                    self.wavelengths[k] = 'off'
