@@ -5,7 +5,7 @@ import os
 
 def call_traffic_generator(file_name):
     print("*** Starting proc %s..." % os.getpid())
-    traffic_generator.main(file_name)
+    traffic_generator.TrafficGenerator(file_name)
 
 
 tr_json_files = ['traffic-files/traffic_domain_1.json',
