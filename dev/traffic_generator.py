@@ -129,7 +129,6 @@ class TrafficGenerator:
         # - considering 25GBaud with PM-BPSK for 50 Gbps per channel
         tr_prev_arriv_time = 0
         tr_id = 1
-        procs = []
         start_time = time.time()
 
         for tr_arriv_time in tr_occurrence_times[0:10]:
@@ -146,13 +145,11 @@ class TrafficGenerator:
                                 serializable_wavelengths, tr_selected_load, int(tr_arriv_time))
 
             p = Process(target=self.release_load, args=(tr_time_duration, tr_selected_load))
+            p.daemon = True
             p.start()
-            procs.append(p)
 
             tr_id += 1
 
-        for p in procs:
-            p.join()
         end_time = time.time() - start_time
 
         print("Took Proc. %s - %s sec to process 10 TRs" % (os.getpid(), end_time))
